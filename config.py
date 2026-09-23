@@ -3,8 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GMAIL_USER = os.getenv("GMAIL_USER")
-GMAIL_PASSWORD = os.getenv("GMAIL_PASSWORD")
+GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 
 MAILRU_USER = os.getenv("MAILRU_USER")
 MAILRU_PASSWORD = os.getenv("MAILRU_PASSWORD")

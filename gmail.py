@@ -1,7 +1,6 @@
 import json
 from config import GOOGLE_CREDENTIALS
 from dotenv import set_key
-from db import get_last_history_id, init_db, save_last_history_id
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials

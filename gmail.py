@@ -1,19 +1,18 @@
 import json
 from config import GOOGLE_CREDENTIALS
 from dotenv import set_key
+from db import get_last_history_id, init_db, save_last_history_id
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
 
 def get_service():
     credentials = None
-
-    print(repr(GOOGLE_CREDENTIALS))
 
     if GOOGLE_CREDENTIALS:
         info = json.loads(GOOGLE_CREDENTIALS)
@@ -30,27 +29,63 @@ def get_service():
     return build("gmail", "v1", credentials=credentials)
 
 
-def list_messages(service, max_results=30):
-    results = (
+def get_last_history_google(service):
+    profile = service.users().getProfile(userId="me").execute()
+    return profile["historyId"]
+
+
+def get_changes(service, start_history_id):
+    response = (
         service.users()
-        .messages()
-        .list(userId="me", maxResults=max_results, q="label:INBOX")
+        .history()
+        .list(userId="me", startHistoryId=start_history_id)
         .execute()
     )
-    messages = results.get("messages", [])
+    return response
 
-    for msg in messages:
-        msg_data = service.users().messages().get(userId="me", id=msg["id"]).execute()
-        headers = msg_data["payload"]["headers"]
-        subject = next(
-            (h["value"] for h in headers if h["name"] == "Subject"), "(без темы)"
+
+def mark_as_read_batch(service, msg_ids):
+    if not msg_ids:
+        return
+    service.users().messages().batchModify(
+        userId="me", body={"ids": msg_ids, "removeLabelIds": ["UNREAD"]}
+    ).execute()
+
+
+def get_new_messages(service, start_history_id, mark_read=True):
+    response = (
+        service.users()
+        .history()
+        .list(
+            userId="me",
+            startHistoryId=start_history_id,
+            historyTypes=["messageAdded"],  # фильтр, чтобы не тащить лишнее
         )
-        sender = next(
-            (h["value"] for h in headers if h["name"] == "From"), "(неизвестно)"
+        .execute()
+    )
+
+    new_message_ids = []
+    for record in response.get("history", []):
+        for msg_added in record.get("messagesAdded", []):
+            new_message_ids.append(msg_added["message"]["id"])
+
+    messages = []
+    for msg_id in new_message_ids:
+        full_message = (
+            service.users()
+            .messages()
+            .get(
+                userId="me",
+                id=msg_id,
+                format="full",  # или 'metadata', 'raw', 'minimal'
+            )
+            .execute()
         )
-        print(f"От: {sender}\nТема: {subject}\n---")
+        messages.append(full_message)
 
+    if mark_read and new_message_ids:
+        service.users().messages().batchModify(
+            userId="me", body={"ids": new_message_ids, "removeLabelIds": ["UNREAD"]}
+        ).execute()
 
-if __name__ == "__main__":
-    service = get_service()
-    list_messages(service)
+    return messages, response["historyId"]

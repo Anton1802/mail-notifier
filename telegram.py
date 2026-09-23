@@ -11,18 +11,17 @@ if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
 
 
 def telegram_bot_sendtext(bot_message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    params = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "parse_mode": "Markdown",
+        "text": bot_message,
+    }
 
-    bot_token = TELEGRAM_BOT_TOKEN
-    bot_chatID = TELEGRAM_CHAT_ID
-    send_text = (
-        "https://api.telegram.org/bot"
-        + bot_token
-        + "/sendMessage?chat_id="
-        + bot_chatID
-        + "&parse_mode=Markdown&text="
-        + bot_message
-    )
+    response = requests.get(url, params=params, timeout=10)
+    data = response.json()
 
-    response = requests.get(send_text)
+    if not data.get("ok"):
+        logger.error("Telegram API error: %s", data)
 
-    return response.json()
+    return data

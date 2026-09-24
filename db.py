@@ -2,7 +2,7 @@ import sqlite3
 
 
 def init_db():
-    conn = sqlite3.connect("gmail_state.db")
+    conn = sqlite3.connect("state.db")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS state (
             key TEXT PRIMARY KEY,
@@ -26,19 +26,10 @@ def save_state(conn, key, value):
     conn.commit()
 
 
-# Обёртки для обратной совместимости с Gmail-частью
-def get_last_history_id(conn):
-    return get_state(conn, "last_history_id")
-
-
-def save_last_history_id(conn, history_id):
-    save_state(conn, "last_history_id", history_id)
-
-
-def get_last_uid_mailru(conn):
-    value = get_state(conn, "last_uid_mailru")
+def get_last_uid(conn, name):
+    value = get_state(conn, f"last_uid_{name}")
     return int(value) if value is not None else None
 
 
-def save_last_uid_mailru(conn, uid):
-    save_state(conn, "last_uid_mailru", uid)
+def save_last_uid(conn, uid, name):
+    save_state(conn, f"last_uid_{name}", uid)

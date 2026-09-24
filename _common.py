@@ -2,29 +2,21 @@ import email
 import imaplib
 from email.header import decode_header
 
-from config import MAILRU_EMAIL, MAILRU_APP_PASSWORD
 
-IMAP_HOST = "imap.mail.ru"
-IMAP_PORT = 993
-
-
-def get_service():
+def get_service(host, port, login, password, mailbox="INBOX"):
     """
-    Аналог get_service() из gmail_api.py — открывает IMAP-сессию.
+    Открывает IMAP-сессию для произвольного провайдера.
     """
-    if not MAILRU_EMAIL or not MAILRU_APP_PASSWORD:
-        raise RuntimeError("MAILRU_EMAIL / MAILRU_APP_PASSWORD не заданы в .env")
+    if not login or not password:
+        raise RuntimeError(f"Логин/пароль не заданы для {host}")
 
-    imap = imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT)
-    imap.login(MAILRU_EMAIL, MAILRU_APP_PASSWORD)
-    imap.select("INBOX")
+    imap = imaplib.IMAP4_SSL(host, port)
+    imap.login(login, password)
+    imap.select(mailbox)
     return imap
 
 
 def _decode_str(value):
-    """
-    Декодирует MIME-заголовок (тема, имя отправителя) в обычную строку.
-    """
     if not value:
         return ""
     parts = decode_header(value)
@@ -38,9 +30,6 @@ def _decode_str(value):
 
 
 def _get_body(msg):
-    """
-    Достаёт текстовое тело письма (plain приоритетнее html).
-    """
     plain_body = None
     html_body = None
 
@@ -72,9 +61,6 @@ def _get_body(msg):
 
 
 def get_last_uid_current(imap):
-    """
-    Возвращает текущий максимальный UID в INBOX (для инициализации состояния).
-    """
     status, data = imap.uid("search", None, "ALL")
     if status != "OK" or not data or not data[0]:
         return 0
@@ -83,17 +69,11 @@ def get_last_uid_current(imap):
 
 
 def get_new_messages(imap, last_uid, mark_read=True):
-    """
-    Возвращает новые письма с UID > last_uid и новый last_uid.
-
-    Аналог get_new_messages() из gmail_api.py.
-    """
     status, data = imap.uid("search", None, f"UID {last_uid + 1}:*")
     if status != "OK" or not data or not data[0]:
         return [], last_uid
 
     uids = data[0].split()
-    # UID-диапазон может вернуть last_uid ещё раз, если новых писем нет — отфильтруем
     uids = [uid for uid in uids if int(uid) > last_uid]
 
     if not uids:

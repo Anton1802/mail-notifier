@@ -127,7 +127,7 @@ def poll_mailru(conn):
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, filename="main.log", format=_format)
+    logging.basicConfig(level=logging.INFO, format=_format)
     logger.info("Mail notifier started")
 
     conn = init_db()

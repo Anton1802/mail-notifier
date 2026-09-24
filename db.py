@@ -1,8 +1,10 @@
 import sqlite3
+import os
 
 
 def init_db():
-    conn = sqlite3.connect("state.db")
+    db_path = os.environ.get("DB_PATH", "state.db")
+    conn = sqlite3.connect(db_path)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS state (
             key TEXT PRIMARY KEY,

@@ -1,0 +1,16 @@
+services:
+  mail-notifier:
+    build: .
+    container_name: mail-notifier
+    restart: unless-stopped
+    environment:
+      - DB_PATH=/app/data/state.db
+    env_file:
+      - .env
+    volumes:
+      - ./config.py:/app/config.py:ro
+      - mail-notifier-data:/app/data
+ 
+volumes:
+  mail-notifier-data:
+ 

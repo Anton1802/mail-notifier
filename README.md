@@ -146,4 +146,4 @@ except Exception as e:
 
 ## 📄 Лицензия
 
-MIT (или укажите свою)
+MIT

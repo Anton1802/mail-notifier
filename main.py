@@ -9,6 +9,12 @@ from db import (
     save_last_uid_mailru,
 )
 from gmail import get_service, get_last_history_google, get_new_messages
+from mailru import (
+    get_service as get_mailru_service,
+    get_last_uid_current,
+    get_new_messages as get_new_mailru_messages,
+    close_service as close_mailru_service,
+)
 from telegram import telegram_bot_sendtext
 
 logger = logging.getLogger(__name__)
@@ -69,6 +75,57 @@ def poll_gmail(service, conn):
         logger.info("Sent %d new Gmail message(s) to Telegram", len(messages))
 
 
+def poll_mailru(conn):
+    last_uid = get_last_uid_mailru(conn)
+
+    try:
+        imap = get_mailru_service()
+    except Exception as e:
+        logger.error("Failed to connect to Mail.ru IMAP: %s", e)
+        return
+
+    try:
+        if last_uid is None:
+            # Первый запуск — просто запоминаем текущий UID, письма не шлём
+            current_uid = get_last_uid_current(imap)
+            save_last_uid_mailru(conn, current_uid)
+            logger.info(
+                "Initialized Mail.ru last_uid=%s (no messages sent)", current_uid
+            )
+            return
+
+        try:
+            messages, new_last_uid = get_new_mailru_messages(
+                imap, last_uid, mark_read=True
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to fetch Mail.ru messages (%s), resetting last_uid", e
+            )
+            current_uid = get_last_uid_current(imap)
+            save_last_uid_mailru(conn, current_uid)
+            return
+
+        for message in messages:
+            try:
+                text = format_message(
+                    message["from"],
+                    message["subject"] or "(без темы)",
+                    message["body"][:500],
+                    "Mail.ru",
+                )
+                telegram_bot_sendtext(text)
+                logger.info(text)
+            except Exception as e:
+                logger.error("Failed to send Mail.ru message to Telegram: %s", e)
+
+        save_last_uid_mailru(conn, new_last_uid)
+        if messages:
+            logger.info("Sent %d new Mail.ru message(s) to Telegram", len(messages))
+    finally:
+        close_mailru_service(imap)
+
+
 def main():
     logging.basicConfig(level=logging.INFO, filename="main.log", format=_format)
     logger.info("Mail notifier started")
@@ -83,6 +140,11 @@ def main():
             poll_gmail(gmail_service, conn)
         except Exception as e:
             logger.exception("Unexpected error during Gmail poll: %s", e)
+
+        try:
+            poll_mailru(conn)
+        except Exception as e:
+            logger.exception("Unexpected error during Mail.ru poll: %s", e)
 
         time.sleep(POLL_INTERVAL_SECONDS)
 

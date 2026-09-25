@@ -2,6 +2,31 @@ import email
 import imaplib
 from email.header import decode_header
 
+import html2text
+import re
+
+_html_converter = html2text.HTML2Text()
+_html_converter.ignore_links = False
+_html_converter.ignore_images = True
+_html_converter.body_width = 0
+_html_converter
+
+
+def _truncate_snippet(text, limit=500):
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    truncated = text[:limit].rsplit(" ", 1)[0]
+    return truncated + "…"
+
+
+def _clean_markdown_headers(text):
+    # убираем ведущие # у заголовков, оставляя только текст
+    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
+    # схлопываем более двух подряд пустых строк в одну
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
 
 def get_service(host, port, login, password, mailbox="INBOX"):
     """
@@ -29,7 +54,7 @@ def _decode_str(value):
     return decoded
 
 
-def _get_body(msg):
+def _get_body(msg, limit=500):
     plain_body = None
     html_body = None
 
@@ -52,12 +77,24 @@ def _get_body(msg):
                     charset, errors="replace"
                 )
     else:
+        content_type = msg.get_content_type()
         charset = msg.get_content_charset() or "utf-8"
         payload = msg.get_payload(decode=True)
         if payload:
-            plain_body = payload.decode(charset, errors="replace")
+            decoded = payload.decode(charset, errors="replace")
+            if content_type == "text/html":
+                html_body = decoded
+            else:
+                plain_body = decoded
 
-    return plain_body or html_body or ""
+    if html_body:
+        result = _clean_markdown_headers(_html_converter.handle(html_body)).strip()
+    elif plain_body:
+        result = plain_body.strip()
+    else:
+        result = ""
+
+    return _truncate_snippet(result, limit)
 
 
 def get_last_uid_current(imap):
@@ -98,7 +135,7 @@ def get_new_messages(imap, last_uid, mark_read=True):
                 "from": _decode_str(msg.get("From")),
                 "to": _decode_str(msg.get("To")),
                 "date": msg.get("Date"),
-                "body": _get_body(msg),
+                "body": _get_body(msg, 4000),
             }
         )
 

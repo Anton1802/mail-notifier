@@ -22,7 +22,9 @@ IMAP_PROVIDERS = {
 
 
 def format_message(sender, subject, snippet, service_name):
-    return f"📧 *{service_name} Новое письмо*\n\n*От:* {sender}\n*Тема:* {subject}\n\n{snippet}"
+    return (
+        f"📧 {service_name} Новое письмо\n\nОт: {sender}\nТема: {subject}\n\n{snippet}"
+    )
 
 
 def poll_provider(conn, provider_key, service_name):
@@ -67,7 +69,7 @@ def poll_provider(conn, provider_key, service_name):
                 text = format_message(
                     message["from"],
                     message["subject"] or "(без темы)",
-                    message["body"][:500],
+                    message["body"],
                     service_name,
                 )
                 telegram_bot_sendtext(text)

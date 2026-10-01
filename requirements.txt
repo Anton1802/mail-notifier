@@ -1,3 +1,4 @@
-requests
-python-dotenv
-html2text
+python-dotenv==1.2.4
+python-telegram-bot==22.8
+Requests==2.34.2
+trafilatura==2.2.0

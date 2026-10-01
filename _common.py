@@ -2,14 +2,7 @@ import email
 import imaplib
 from email.header import decode_header
 
-import html2text
-import re
-
-_html_converter = html2text.HTML2Text()
-_html_converter.ignore_links = False
-_html_converter.ignore_images = True
-_html_converter.body_width = 0
-_html_converter
+import trafilatura
 
 
 def _truncate_snippet(text, limit=500):
@@ -18,14 +11,6 @@ def _truncate_snippet(text, limit=500):
         return text
     truncated = text[:limit].rsplit(" ", 1)[0]
     return truncated + "…"
-
-
-def _clean_markdown_headers(text):
-    # убираем ведущие # у заголовков, оставляя только текст
-    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
-    # схлопываем более двух подряд пустых строк в одну
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
 
 
 def get_service(host, port, login, password, mailbox="INBOX"):
@@ -88,7 +73,10 @@ def _get_body(msg, limit=500):
                 plain_body = decoded
 
     if html_body:
-        result = _clean_markdown_headers(_html_converter.handle(html_body)).strip()
+        result = (
+            trafilatura.extract(html_body, include_links=False, include_tables=False)
+            or ""
+        )
     elif plain_body:
         result = plain_body.strip()
     else:

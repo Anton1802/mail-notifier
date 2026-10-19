@@ -2,7 +2,7 @@ import email
 import imaplib
 from email.header import decode_header
 
-import trafilatura
+from trafilatura import html2txt
 
 
 def _truncate_snippet(text, limit=500):
@@ -73,10 +73,7 @@ def _get_body(msg, limit=500):
                 plain_body = decoded
 
     if html_body:
-        result = (
-            trafilatura.extract(html_body, include_links=False, include_tables=False)
-            or ""
-        )
+        result = html2txt(html_body) or ""
     elif plain_body:
         result = plain_body.strip()
     else:

@@ -72,12 +72,21 @@ def _get_body(msg, limit=500):
             else:
                 plain_body = decoded
 
+    parts = []
     if html_body:
-        result = html2txt(html_body) or ""
-    elif plain_body:
-        result = plain_body.strip()
-    else:
-        result = ""
+        parts.append(html2txt(html_body) or "")
+    if plain_body:
+        parts.append(plain_body.strip())
+
+    seen = set()
+    chunks = []
+    for p in parts:
+        p = p.strip()
+        if p and p not in seen:
+            seen.add(p)
+            chunks.append(p)
+
+    result = "\n\n".join(chunks)
 
     return _truncate_snippet(result, limit)
 

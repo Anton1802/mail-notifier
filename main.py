@@ -2,6 +2,7 @@ import logging
 import threading
 import time
 from config import *
+import sys
 
 from _common import get_service, get_new_messages, close_service, get_last_uid_current
 from db import init_db, get_last_uid, save_last_uid, list_accounts
@@ -95,9 +96,12 @@ def main():
     while True:
         try:
             poll_all_accounts(conn)
+            time.sleep(POLL_INTERVAL_SECONDS)
+        except KeyboardInterrupt:
+            logger.info("Process stopped")
+            sys.exit(0)
         except Exception as e:
             logger.exception("Unexpected error during poll cycle: %s", e)
-        time.sleep(POLL_INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":
